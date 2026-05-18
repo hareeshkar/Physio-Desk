@@ -6,7 +6,7 @@ import {
   mergeVisualNotes,
   requirePdfSource,
   type SourcePage,
-} from './_document'
+} from '../functions/_document'
 
 describe('document preparation helpers', () => {
   it('requires a PDF source with base64 data', () => {

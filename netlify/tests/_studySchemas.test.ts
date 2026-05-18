@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeEvaluationResponse } from './_studySchemas'
+import { normalizeEvaluationResponse } from '../functions/_studySchemas'
 
 describe('normalizeEvaluationResponse', () => {
   it('derives essay correctness from score instead of trusting model boolean', () => {

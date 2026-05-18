@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { handler } from './evaluate-answer'
+import { handler } from '../functions/evaluate-answer'
 
 const question = {
   type: 'short_essay',

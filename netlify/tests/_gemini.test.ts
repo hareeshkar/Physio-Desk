@@ -11,7 +11,7 @@ import {
   normalizeVerificationResponse,
   parseGeminiJson,
   requirePdfSource,
-} from './_gemini'
+} from '../functions/_gemini'
 
 describe('generateContentWithFallback', () => {
   it('falls back to Gemini 3 Flash-Lite on high-demand 503 errors', async () => {
