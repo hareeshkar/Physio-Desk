@@ -1,4 +1,5 @@
 import { minimaxVlm } from './_minimax'
+import { loadPdfParse } from './_pdfRuntime'
 
 export interface PdfSource {
   fileName: string
@@ -167,20 +168,6 @@ function normalizeExtractedText(text: string) {
 
 function defaultVlmPrompt(pageNumber: number) {
   return `Extract exam-relevant text, labels, tables, diagrams, definitions, causes, clinical features, morphology, complications, and relationships visible on PDF page ${pageNumber}. Do not infer beyond the image. Return concise page notes with quoted labels when possible.`
-}
-
-async function loadPdfParse() {
-  await ensurePdfGeometryGlobals()
-  return import('pdf-parse')
-}
-
-async function ensurePdfGeometryGlobals() {
-  if (globalThis.DOMMatrix && globalThis.DOMPoint && globalThis.DOMRect) return
-
-  const geometry = await import('@napi-rs/canvas/geometry')
-  globalThis.DOMMatrix ??= geometry.DOMMatrix
-  globalThis.DOMPoint ??= geometry.DOMPoint
-  globalThis.DOMRect ??= geometry.DOMRect
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
