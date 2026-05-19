@@ -11,4 +11,4 @@ export {
   type NormalizedQuizResponse,
   type NormalizedVerificationResponse,
   type NormalizedVerificationResult,
-} from './_gemini'
+} from './_gemini.js'

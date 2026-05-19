@@ -1,5 +1,5 @@
-import { requirePreparedSource, resolveStudySource } from '../_document'
-import { generateMiniMaxQuiz } from '../_minimaxStudy'
+import { requirePreparedSource, resolveStudySource } from '../_document.js'
+import { generateMiniMaxQuiz } from '../_minimaxStudy.js'
 
 export interface GenerateQuizRequest {
   pdfSource?: unknown

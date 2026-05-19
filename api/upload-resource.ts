@@ -1,10 +1,4 @@
-import { handlePost, optionsResponse } from '../server/http'
-import { handleUploadResource } from '../server/routes/upload-resource'
+import { createVercelHandler } from '../server/http.js'
+import { handleUploadResource } from '../server/routes/upload-resource.js'
 
-export async function OPTIONS() {
-  return optionsResponse()
-}
-
-export async function POST(request: Request) {
-  return handlePost(request, handleUploadResource)
-}
+export default createVercelHandler(handleUploadResource)

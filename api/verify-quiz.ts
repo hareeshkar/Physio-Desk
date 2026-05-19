@@ -1,10 +1,4 @@
-import { handlePost, optionsResponse } from '../server/http'
-import { handleVerifyQuiz } from '../server/routes/verify-quiz'
+import { createVercelHandler } from '../server/http.js'
+import { handleVerifyQuiz } from '../server/routes/verify-quiz.js'
 
-export async function OPTIONS() {
-  return optionsResponse()
-}
-
-export async function POST(request: Request) {
-  return handlePost(request, handleVerifyQuiz)
-}
+export default createVercelHandler(handleVerifyQuiz)

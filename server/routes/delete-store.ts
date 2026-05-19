@@ -1,4 +1,4 @@
-import { getGeminiClient } from '../_gemini'
+import { getGeminiClient } from '../_gemini.js'
 
 export interface DeleteStoreRequest {
   fileSearchStoreName: string

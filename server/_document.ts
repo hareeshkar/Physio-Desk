@@ -1,12 +1,11 @@
-import { minimaxVlm } from './_minimax'
-import { createPdfParser } from './_pdfRuntime'
+import { minimaxVlm } from './_minimax.js'
 import {
   buildModelTextFromPages,
   detectPageExtractionQuality,
   normalizeExtractedText,
   selectPagesForModel,
   type SourcePageRecord,
-} from './_sourceCoverage'
+} from './_sourceCoverage.js'
 
 export interface PdfSource {
   fileName: string
@@ -100,6 +99,11 @@ export async function prepareSourceDocument(
     visualNotes,
     warnings,
   }
+}
+
+async function createPdfParser(options: { data: Buffer }) {
+  const { createPdfParser: create } = await import('./_pdfRuntime.js')
+  return create(options)
 }
 
 export async function extractPdfPages(source: PdfSource): Promise<SourcePage[]> {

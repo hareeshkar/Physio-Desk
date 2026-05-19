@@ -1,5 +1,5 @@
-import { minimaxText, type MiniMaxMessage, type MiniMaxTool } from './_minimax'
-import type { PreparedSourceDocument } from './_document'
+import { minimaxText, type MiniMaxMessage, type MiniMaxTool } from './_minimax.js'
+import type { PreparedSourceDocument } from './_document.js'
 import {
   normalizeEvaluationResponse,
   normalizeQuizResponse,
@@ -7,7 +7,7 @@ import {
   type NormalizedEvaluationResponse,
   type NormalizedQuizResponse,
   type NormalizedVerificationResponse,
-} from './_studySchemas'
+} from './_studySchemas.js'
 
 export function buildQuizPrompt(args: {
   source: PreparedSourceDocument

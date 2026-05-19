@@ -1,8 +1,8 @@
 import {
   EMBEDDING_MODEL_ID,
   getGeminiClient,
-} from '../_gemini'
-import { HttpError } from '../http'
+} from '../_gemini.js'
+import { HttpError } from '../http.js'
 
 export interface UploadResourceRequest {
   fileName: string

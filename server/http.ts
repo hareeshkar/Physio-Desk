@@ -1,7 +1,38 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+}
+
+export function createVercelHandler<T>(handler: (payload: T) => Promise<unknown>) {
+  return async (req: VercelRequest, res: VercelResponse) => {
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      res.setHeader(key, value)
+    }
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).end()
+      return
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' })
+      return
+    }
+
+    try {
+      const result = await handler(req.body as T)
+      res.status(200).json(result)
+    } catch (error) {
+      if (error instanceof HttpError) {
+        res.status(error.status).json({ error: error.message })
+        return
+      }
+      res.status(500).json({ error: formatErrorMessage(error) })
+    }
+  }
 }
 
 export class HttpError extends Error {

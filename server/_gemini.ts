@@ -1,5 +1,4 @@
 import { GoogleGenAI, type types } from '@google/genai'
-import { createPdfParser } from './_pdfRuntime'
 
 export const MODEL_ID = 'gemini-3-flash-preview'
 export const FALLBACK_MODEL_IDS = ['gemini-3.1-flash-lite', 'gemini-3.1-flash-lite-preview'] as const
@@ -69,6 +68,7 @@ export function buildDirectPdfContents(instructions: string, source: DirectPdfSo
 }
 
 export async function buildWholePdfTextContents(instructions: string, source: DirectPdfSource): Promise<string> {
+  const { createPdfParser } = await import('./_pdfRuntime.js')
   const parser = await createPdfParser({ data: Buffer.from(source.base64, 'base64') })
 
   try {

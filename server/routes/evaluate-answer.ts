@@ -1,5 +1,5 @@
-import { resolveStudySource } from '../_document'
-import { evaluateMiniMaxEssay } from '../_minimaxStudy'
+import { resolveStudySource } from '../_document.js'
+import { evaluateMiniMaxEssay } from '../_minimaxStudy.js'
 
 export interface EvaluateAnswerRequest {
   pdfSource?: unknown

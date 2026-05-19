@@ -1,5 +1,5 @@
-import { resolveStudySource } from '../_document'
-import { verifyMiniMaxQuestions } from '../_minimaxStudy'
+import { resolveStudySource } from '../_document.js'
+import { verifyMiniMaxQuestions } from '../_minimaxStudy.js'
 
 export interface VerifyQuizRequest {
   pdfSource?: unknown

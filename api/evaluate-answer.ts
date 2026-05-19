@@ -1,10 +1,4 @@
-import { handlePost, optionsResponse } from '../server/http'
-import { handleEvaluateAnswer } from '../server/routes/evaluate-answer'
+import { createVercelHandler } from '../server/http.js'
+import { handleEvaluateAnswer } from '../server/routes/evaluate-answer.js'
 
-export async function OPTIONS() {
-  return optionsResponse()
-}
-
-export async function POST(request: Request) {
-  return handlePost(request, handleEvaluateAnswer)
-}
+export default createVercelHandler(handleEvaluateAnswer)
