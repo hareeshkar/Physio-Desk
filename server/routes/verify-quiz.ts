@@ -23,6 +23,6 @@ export async function handleVerifyQuiz(payload: VerifyQuizRequest) {
   return {
     acceptedQuestions: questions.filter((question: { id?: string }) => acceptedIds.has(question.id)),
     rejectedQuestions: normalized.results.filter((result) => result.verdict === 'rejected'),
-    warnings: [...normalized.warnings, ...source.warnings],
+    warnings: normalized.warnings,
   }
 }

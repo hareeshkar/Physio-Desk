@@ -111,6 +111,39 @@ export function selectPagesForModel(
   return pages.filter((page) => allowed.has(page.pageNumber))
 }
 
+import type { QuestionCounts } from './questionSelection'
+
+/** Split a session quota across PDF chunks so we do not ask for 20 MCQs per chunk. */
+export function splitCountsAcrossChunks(
+  counts: QuestionCounts,
+  chunkIndex: number,
+  chunkCount: number,
+): QuestionCounts {
+  if (chunkCount <= 1) return counts
+
+  const mcqBase = Math.floor(counts.mcq / chunkCount)
+  const mcqRemainder = counts.mcq % chunkCount
+  const shortBase = Math.floor(counts.shortEssay / chunkCount)
+  const shortRemainder = counts.shortEssay % chunkCount
+
+  return {
+    mcq: mcqBase + (chunkIndex < mcqRemainder ? 1 : 0),
+    shortEssay: shortBase + (chunkIndex < shortRemainder ? 1 : 0),
+  }
+}
+
+export function dedupeStrings(values: string[]) {
+  const seen = new Set<string>()
+  const unique: string[] = []
+  for (const value of values) {
+    const trimmed = value.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    unique.push(trimmed)
+  }
+  return unique
+}
+
 export function buildModelTextFromPages(pages: SourcePageRecord[]) {
   const text = buildFullTextFromPages(pages)
   if (!text.trim()) {

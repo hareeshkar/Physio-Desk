@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { hasExactQuestionCounts, selectQuestionsForSession } from './questionSelection'
+import {
+  hasExactQuestionCounts,
+  missingQuestionCounts,
+  selectQuestionsForSession,
+  selectQuestionsForVerification,
+} from './questionSelection'
 import type { Question } from './types'
 
 function makeQuestion(id: string, type: Question['type']): Question {
@@ -28,6 +33,35 @@ function makeQuestion(id: string, type: Question['type']): Question {
     verificationStatus: 'accepted',
   }
 }
+
+describe('selectQuestionsForVerification', () => {
+  it('caps verify input to requested counts plus buffer', () => {
+    const questions = [
+      ...Array.from({ length: 30 }, (_, index) => makeQuestion(`mcq-${index}`, 'mcq')),
+      ...Array.from({ length: 10 }, (_, index) => makeQuestion(`short-${index}`, 'short_essay')),
+    ]
+
+    const selected = selectQuestionsForVerification(questions, { mcq: 20, shortEssay: 0 })
+
+    expect(selected).toHaveLength(22)
+    expect(selected.every((question) => question.type === 'mcq')).toBe(true)
+  })
+})
+
+describe('missingQuestionCounts', () => {
+  it('returns only the counts still needed', () => {
+    const questions = [
+      makeQuestion('mcq-1', 'mcq'),
+      makeQuestion('mcq-2', 'mcq'),
+      makeQuestion('short-1', 'short_essay'),
+    ]
+
+    expect(missingQuestionCounts(questions, { mcq: 5, shortEssay: 2 })).toEqual({
+      mcq: 3,
+      shortEssay: 1,
+    })
+  })
+})
 
 describe('selectQuestionsForSession', () => {
   it('returns exactly the requested MCQ and short essay counts', () => {

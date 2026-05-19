@@ -42,6 +42,6 @@ export async function handleGenerateQuiz(payload: GenerateQuizRequest) {
   return {
     ...generated,
     preparedSource,
-    warnings: [...generated.warnings, ...source.warnings],
+    warnings: generated.warnings,
   }
 }

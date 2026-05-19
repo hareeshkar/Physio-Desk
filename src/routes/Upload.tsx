@@ -13,8 +13,21 @@ import {
   mergePreparedSourceFromResponse,
   toPreparedSourcePayload,
 } from '../lib/preparedSource'
-import { hasExactQuestionCounts, selectQuestionsForSession } from '../lib/questionSelection'
-import { DEFAULT_QUIZ_MODE_ID, getQuizMode, normalizeQuestionCounts, QUIZ_MODES, type QuizModeId } from '../lib/quizModes'
+import {
+  hasExactQuestionCounts,
+  missingQuestionCounts,
+  selectQuestionsForSession,
+} from '../lib/questionSelection'
+import { dedupeStrings } from '../lib/sourceCoverage'
+import {
+  DEFAULT_QUIZ_MODE_ID,
+  formatQuestionMix,
+  getQuizMode,
+  normalizeQuestionCounts,
+  QUIZ_MODES,
+  resolveModeDisplayCounts,
+  type QuizModeId,
+} from '../lib/quizModes'
 import { filterUsableQuestions } from '../lib/validation'
 import type { PreparedSource, Question, QuizSession, StudyResource } from '../lib/types'
 
@@ -27,12 +40,11 @@ export function Upload() {
   const [customMcq, setCustomMcq] = useState(6)
   const [customShortEssay, setCustomShortEssay] = useState(3)
   const [choiceCount, setChoiceCount] = useState<4 | 5>(4)
-  const [status, setStatus] = useState('Choose a document to generate 10 MCQs and 5 short essays.')
+  const [status, setStatus] = useState(() => idleStatusMessage(DEFAULT_QUIZ_MODE_ID, { mcq: 6, shortEssay: 3 }))
   const [steps, setSteps] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
-  const previewCounts = mode === 'custom'
-    ? safeQuestionCounts(customMcq, customShortEssay)
-    : { mcq: getQuizMode(mode).mcq, shortEssay: getQuizMode(mode).shortEssay }
+  const customCounts = { mcq: customMcq, shortEssay: customShortEssay }
+  const previewCounts = resolveModeDisplayCounts(mode, customCounts)
 
   function logStep(message: string) {
     console.log(`[Physio Study] ${message}`)
@@ -58,6 +70,11 @@ export function Upload() {
 
     void loadSavedResource()
   }, [searchParams])
+
+  useEffect(() => {
+    if (busy) return
+    setStatus(idleStatusMessage(mode, customCounts))
+  }, [mode, customMcq, customShortEssay, busy])
 
   async function handleCreate() {
     if (!file) return
@@ -97,10 +114,8 @@ export function Upload() {
       await saveResource(resource)
       setSavedResource(resource)
 
-      if (prepared.preparedSource.warnings?.length) {
-        for (const warning of prepared.preparedSource.warnings) {
-          logStep(warning)
-        }
+      for (const warning of dedupeStrings(prepared.preparedSource.warnings ?? [])) {
+        logStep(warning)
       }
 
       const previousQuestions = await getQuestionsForResource(resource.id)
@@ -118,8 +133,8 @@ export function Upload() {
       setSavedResource(resource)
 
       logStep('Filtering weak or repeated questions…')
-      if (generated.warnings?.length) {
-        logStep(`Partial quiz response: ${generated.warnings.join(' ')}`)
+      for (const warning of dedupeStrings(generated.warnings ?? [])) {
+        logStep(`Partial quiz response: ${warning}`)
       }
       if (!Array.isArray(generated.questions)) {
         throw new Error('MiniMax returned an invalid quiz response: questions was not an array.')
@@ -137,11 +152,12 @@ export function Upload() {
       let verified = await verifyQuizInBatches({
         preparedSource: activePreparedSource(resource, studySource),
         questions: locallyValid,
+        counts: selectedCounts,
         onProgress: logStep,
       })
 
-      if (verified.warnings?.length) {
-        logStep(`Partial verification response: ${verified.warnings.join(' ')}`)
+      for (const warning of dedupeStrings(verified.warnings ?? [])) {
+        logStep(`Partial verification response: ${warning}`)
       }
       if (!Array.isArray(verified.acceptedQuestions)) {
         throw new Error('MiniMax returned an invalid verification response: acceptedQuestions was not an array.')
@@ -162,11 +178,12 @@ export function Upload() {
         mcq: selectedCounts.mcq,
         shortEssay: selectedCounts.shortEssay,
       })) {
+        const missingCounts = missingQuestionCounts(selectedQuestions, selectedCounts)
         logStep('Asking MiniMax for replacement candidates…')
         const retryGenerated = await generateQuizWithFullCoverage({
           preparedSource: activePreparedSource(resource, studySource),
           mode,
-          counts: selectedCounts,
+          counts: missingCounts,
           choiceCount,
           previousQuestions: [
             ...previousQuestions,
@@ -190,6 +207,7 @@ export function Upload() {
         verified = await verifyQuizInBatches({
           preparedSource: activePreparedSource(resource, studySource),
           questions: retryValid,
+          counts: missingCounts,
           onProgress: logStep,
         })
         accepted = [
@@ -270,18 +288,25 @@ export function Upload() {
         </label>
 
         <div className="mode-grid">
-          {QUIZ_MODES.map((quizMode) => (
-            <button
-              className={mode === quizMode.id ? 'mode active' : 'mode'}
-              key={quizMode.id}
-              onClick={() => setMode(quizMode.id)}
-              type="button"
-            >
-              <strong>{quizMode.label}</strong>
-              <small>{quizMode.mcq} MCQ + {quizMode.shortEssay} short</small>
-              <span>{quizMode.description}</span>
-            </button>
-          ))}
+          {QUIZ_MODES.map((quizMode) => {
+            const displayCounts = resolveModeDisplayCounts(quizMode.id, customCounts)
+            return (
+              <button
+                className={mode === quizMode.id ? 'mode active' : 'mode'}
+                key={quizMode.id}
+                onClick={() => setMode(quizMode.id)}
+                type="button"
+              >
+                <strong>{quizMode.label}</strong>
+                <small>
+                  {quizMode.id === 'custom'
+                    ? formatQuestionMix(displayCounts)
+                    : `${displayCounts.mcq} MCQ${displayCounts.mcq === 1 ? '' : 's'} + ${displayCounts.shortEssay} short essay${displayCounts.shortEssay === 1 ? '' : 's'}`}
+                </small>
+                <span>{quizMode.description}</span>
+              </button>
+            )
+          })}
         </div>
 
         {mode === 'custom' && (
@@ -316,11 +341,7 @@ export function Upload() {
         </div>
 
         <button className="button primary wide" disabled={!file || busy || previewCounts.mcq + previewCounts.shortEssay < 1} onClick={handleCreate}>
-          {busy ? 'Preparing your practice…' : `Generate ${
-            previewCounts.mcq
-          } MCQs + ${
-            previewCounts.shortEssay
-          } essays`}
+          {busy ? 'Preparing your practice…' : `Generate ${formatQuestionMix(previewCounts)}`}
         </button>
 
         <p className="status-line">{status}</p>
@@ -342,10 +363,7 @@ function activePreparedSource(resource: StudyResource, fallback: PreparedSource)
   return toPreparedSourcePayload(resource.preparedSource ?? fallback)
 }
 
-function safeQuestionCounts(mcq: number, shortEssay: number) {
-  try {
-    return normalizeQuestionCounts({ mcq, shortEssay })
-  } catch {
-    return { mcq: 0, shortEssay: 0 }
-  }
+function idleStatusMessage(modeId: QuizModeId, customCounts: { mcq: number; shortEssay: number }) {
+  const counts = resolveModeDisplayCounts(modeId, customCounts)
+  return `Choose a document to generate ${formatQuestionMix(counts)}.`
 }

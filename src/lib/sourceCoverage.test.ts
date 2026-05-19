@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   buildExtractionWarnings,
   buildModelTextFromPages,
+  dedupeStrings,
   detectPageExtractionQuality,
   planPageChunks,
   selectPagesForModel,
+  splitCountsAcrossChunks,
   type SourcePageRecord,
 } from './sourceCoverage'
 
@@ -32,6 +34,18 @@ describe('sourceCoverage', () => {
     expect(selected.map((item) => item.pageNumber)).toEqual([2, 3])
     expect(buildModelTextFromPages(selected)).toContain('SOURCE_PAGE 2')
     expect(buildModelTextFromPages(selected)).not.toContain('SOURCE_PAGE 1')
+  })
+
+  it('splits question counts evenly across chunks with remainder on first chunks', () => {
+    expect(splitCountsAcrossChunks({ mcq: 20, shortEssay: 0 }, 0, 2)).toEqual({ mcq: 10, shortEssay: 0 })
+    expect(splitCountsAcrossChunks({ mcq: 20, shortEssay: 0 }, 1, 2)).toEqual({ mcq: 10, shortEssay: 0 })
+    expect(splitCountsAcrossChunks({ mcq: 20, shortEssay: 3 }, 0, 2)).toEqual({ mcq: 10, shortEssay: 2 })
+    expect(splitCountsAcrossChunks({ mcq: 20, shortEssay: 3 }, 1, 2)).toEqual({ mcq: 10, shortEssay: 1 })
+    expect(splitCountsAcrossChunks({ mcq: 5, shortEssay: 0 }, 0, 1)).toEqual({ mcq: 5, shortEssay: 0 })
+  })
+
+  it('dedupes warning strings', () => {
+    expect(dedupeStrings(['a', 'a', ' b ', 'c'])).toEqual(['a', 'b', 'c'])
   })
 
   it('warns when many pages are weak', () => {

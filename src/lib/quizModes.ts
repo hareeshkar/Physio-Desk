@@ -33,11 +33,37 @@ export const QUIZ_MODES: QuizMode[] = [
   {
     id: 'custom',
     label: 'Custom',
-    description: 'Choose the mix that fits today.',
-    mcq: 6,
-    shortEssay: 3,
+    description: 'Set MCQs and short essays with the fields below.',
+    mcq: 0,
+    shortEssay: 0,
   },
 ]
+
+export function formatQuestionMix(counts: QuestionCounts) {
+  const parts: string[] = []
+  if (counts.mcq > 0) {
+    parts.push(`${counts.mcq} MCQ${counts.mcq === 1 ? '' : 's'}`)
+  }
+  if (counts.shortEssay > 0) {
+    parts.push(`${counts.shortEssay} short essay${counts.shortEssay === 1 ? '' : 's'}`)
+  }
+  return parts.length ? parts.join(' + ') : 'Choose at least one question'
+}
+
+export function resolveModeDisplayCounts(
+  modeId: QuizModeId,
+  customCounts: QuestionCounts,
+): QuestionCounts {
+  if (modeId === 'custom') {
+    try {
+      return normalizeQuestionCounts(customCounts)
+    } catch {
+      return { mcq: Math.max(0, Math.floor(customCounts.mcq) || 0), shortEssay: Math.max(0, Math.floor(customCounts.shortEssay) || 0) }
+    }
+  }
+  const preset = getQuizMode(modeId)
+  return { mcq: preset.mcq, shortEssay: preset.shortEssay }
+}
 
 export function getQuizMode(id: QuizModeId): QuizMode {
   return (
