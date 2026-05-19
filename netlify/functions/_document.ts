@@ -1,4 +1,3 @@
-import { PDFParse } from 'pdf-parse'
 import { minimaxVlm } from './_minimax'
 
 export interface PdfSource {
@@ -83,6 +82,7 @@ export async function prepareSourceDocument(
 }
 
 export async function extractPdfPages(source: PdfSource): Promise<SourcePage[]> {
+  const { PDFParse } = await loadPdfParse()
   const parser = new PDFParse({ data: Buffer.from(source.base64, 'base64') })
 
   try {
@@ -107,6 +107,7 @@ export async function extractPdfPages(source: PdfSource): Promise<SourcePage[]> 
 }
 
 export async function renderPageToImageDataUri(source: PdfSource, pageNumber: number): Promise<string> {
+  const { PDFParse } = await loadPdfParse()
   const parser = new PDFParse({ data: Buffer.from(source.base64, 'base64') })
 
   try {
@@ -166,6 +167,20 @@ function normalizeExtractedText(text: string) {
 
 function defaultVlmPrompt(pageNumber: number) {
   return `Extract exam-relevant text, labels, tables, diagrams, definitions, causes, clinical features, morphology, complications, and relationships visible on PDF page ${pageNumber}. Do not infer beyond the image. Return concise page notes with quoted labels when possible.`
+}
+
+async function loadPdfParse() {
+  await ensurePdfGeometryGlobals()
+  return import('pdf-parse')
+}
+
+async function ensurePdfGeometryGlobals() {
+  if (globalThis.DOMMatrix && globalThis.DOMPoint && globalThis.DOMRect) return
+
+  const geometry = await import('@napi-rs/canvas/geometry')
+  globalThis.DOMMatrix ??= geometry.DOMMatrix
+  globalThis.DOMPoint ??= geometry.DOMPoint
+  globalThis.DOMRect ??= geometry.DOMRect
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
