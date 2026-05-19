@@ -1,0 +1,15 @@
+export {
+  buildExtractionWarnings,
+  buildFullTextFromPages,
+  buildModelTextFromPages,
+  detectPageExtractionQuality,
+  formatSourcePage,
+  GENERATE_CHUNK_TARGET_CHARS,
+  MODEL_ABSOLUTE_MAX_CHARS,
+  normalizeExtractedText,
+  planPageChunks,
+  selectPagesForModel,
+  summarizeExtraction,
+  type ExtractionQuality,
+  type SourcePageRecord,
+} from '../src/lib/sourceCoverage.ts'

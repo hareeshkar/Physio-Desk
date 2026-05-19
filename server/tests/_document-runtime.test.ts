@@ -20,19 +20,19 @@ async function withoutDomGeometryGlobals(run: () => Promise<void>) {
 describe('document runtime setup', () => {
   it('loads without browser DOM geometry globals', async () => {
     await withoutDomGeometryGlobals(async () => {
-      await expect(import('../functions/_document')).resolves.toHaveProperty('extractPdfPages')
+      await expect(import('../_document')).resolves.toHaveProperty('extractPdfPages')
     })
   })
 
   it('loads gemini helpers without browser DOM geometry globals', async () => {
     await withoutDomGeometryGlobals(async () => {
-      await expect(import('../functions/_gemini')).resolves.toHaveProperty('buildQuizPrompt')
+      await expect(import('../_gemini')).resolves.toHaveProperty('getGeminiClient')
     })
   })
 
   it('configures pdf-parse worker without a local pdf.worker.mjs file', async () => {
     await withoutDomGeometryGlobals(async () => {
-      const { loadPdfParse } = await import('../functions/_pdfRuntime')
+      const { loadPdfParse } = await import('../_pdfRuntime')
       const pdfParse = await loadPdfParse()
       expect(pdfParse.PDFParse).toBeTypeOf('function')
       expect(globalThis.pdfjsWorker?.WorkerMessageHandler).toBeTypeOf('function')

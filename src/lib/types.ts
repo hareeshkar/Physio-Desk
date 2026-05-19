@@ -7,9 +7,28 @@ export interface Choice {
   text: string
 }
 
+export type ExtractionQuality = 'strong' | 'weak' | 'visual'
+
+export interface PreparedSourcePage {
+  pageNumber: number
+  text: string
+  extractionQuality: ExtractionQuality
+  visualNotes?: string
+}
+
+export interface PreparedSourceStats {
+  pageCount: number
+  weakPageCount: number
+  strongPageCount: number
+  visualPageCount: number
+}
+
 export interface PreparedSource {
   fileName: string
   fullText: string
+  pages?: PreparedSourcePage[]
+  stats?: PreparedSourceStats
+  warnings?: string[]
 }
 
 export interface StudyResource {

@@ -1,5 +1,13 @@
 # MiniMax Smoke Test Results
 
+## Vercel migration (2026-05-19)
+
+- Hosting moved from Netlify (26s function cap) to **Vercel Hobby** (300s max per function).
+- GI PDF smoke: `npm run smoke:gi` — generate ~37s, verify ~21s (MiniMax OK; Netlify was the blocker).
+- API routes: `/api/generate-quiz`, `/api/verify-quiz`, etc.
+
+---
+
 **Date**: 2026-05-16  
 **Run command**: `npm run smoke:minimax` (full) or `npm run smoke:minimax -- --fast` (skip tests 7-8)  
 **Account**: Token Plan Plus (standard, `sk-cp-…` key format)  

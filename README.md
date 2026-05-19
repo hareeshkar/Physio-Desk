@@ -7,10 +7,22 @@ A personal study app for generating source-grounded physiotherapy MCQs and short
 ```bash
 npm install
 cp .env.example .env
-npm run dev
+npm run dev:vercel
 ```
 
-`npm run dev` serves both the Vite app and local `/.netlify/functions/*` routes through a Vite middleware, so local uploads work on `http://localhost:5173`.
+`npm run dev:vercel` runs the Vite app and `/api/*` serverless routes together (use this for generate/verify). `npm run dev` is UI-only.
+
+Deployed on **Vercel Hobby** (`/api/*`, up to 300s per function). Set `MINIMAX_API_KEY` and `GEMINI_API_KEY` in the Vercel project settings.
+
+## Deploy (Vercel)
+
+```bash
+npx vercel link
+npx vercel env pull .env.local
+npx vercel --prod
+```
+
+After deploy, generate a quiz from the GI PDF in the browser. Functions allow ~120s for `generate-quiz` (smoke test: ~37s for 2 MCQs).
 
 ## Gemini
 
@@ -24,6 +36,7 @@ npm run dev
 ```bash
 npm test
 npm run build
+npm run smoke:gi
 ```
 # React + TypeScript + Vite
 

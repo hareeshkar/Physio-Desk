@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { prepareSourceDocument, requirePdfSource } from '../netlify/functions/_document.ts'
+import { prepareSourceDocument, requirePdfSource } from '../server/_document.ts'
 import {
   evaluateMiniMaxEssay,
   generateMiniMaxQuiz,
   verifyMiniMaxQuestion,
-} from '../netlify/functions/_minimaxStudy.ts'
+} from '../server/_minimaxStudy.ts'
 import { buildLocalMcqFeedback } from '../src/lib/mcqFeedback.ts'
 
 const REQUIRED_MCQ = 2

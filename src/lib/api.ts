@@ -1,6 +1,6 @@
 import type { EvaluationResult, PreparedSource, Question } from './types'
 
-const functionBase = '/.netlify/functions'
+const functionBase = import.meta.env.VITE_API_BASE ?? '/api'
 const MAX_PDF_UPLOAD_BYTES = 4 * 1024 * 1024
 
 export type PreparedSourcePayload = PreparedSource
@@ -30,6 +30,7 @@ export async function uploadResourceFile(file: File) {
 }
 
 export async function generateQuiz(payload: StudySourcePayload & {
+  pageNumbers?: number[]
   mode: string
   counts: { mcq: number; shortEssay: number }
   choiceCount: 4 | 5
@@ -136,7 +137,7 @@ async function postJson<T>(
 }
 
 function parseApiError(rawBody: string, contentType: string, status: number) {
-  if (rawBody.includes('Inactivity Timeout')) {
+  if (rawBody.includes('Inactivity Timeout') || rawBody.includes('FUNCTION_INVOCATION_TIMEOUT')) {
     return 'The server timed out. Your note text is stored on this device — try quick mode or retry in a moment.'
   }
 

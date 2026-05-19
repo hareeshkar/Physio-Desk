@@ -14,7 +14,7 @@ import {
   quizResponseSchema,
   verificationSchema,
   evaluationSchema,
-} from '../netlify/functions/_gemini.ts'
+} from '../server/_gemini.ts'
 
 const REQUIRED_MCQ = 2
 const REQUIRED_SHORT = 1

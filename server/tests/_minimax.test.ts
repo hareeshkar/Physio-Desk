@@ -7,7 +7,7 @@ import {
   mapMiniMaxError,
   minimaxText,
   minimaxVlm,
-} from '../functions/_minimax'
+} from '../_minimax'
 
 describe('MiniMax response handling', () => {
   it('unwraps successful base_resp responses', () => {
@@ -110,7 +110,7 @@ describe('MiniMax response handling', () => {
 })
 
 async function minimaxPostForTest(fetchImpl: typeof fetch) {
-  return (await import('../functions/_minimax')).minimaxPost('/v1/text/chatcompletion_v2', {}, 'sk-cp-test', fetchImpl)
+  return (await import('../_minimax')).minimaxPost('/v1/text/chatcompletion_v2', {}, 'sk-cp-test', fetchImpl)
 }
 
 describe('MiniMax API callers', () => {

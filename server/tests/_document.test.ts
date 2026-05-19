@@ -3,13 +3,13 @@ import {
   buildImageDataUri,
   buildPreparedSourceText,
   detectExtractionQuality,
-  MAX_MODEL_SOURCE_TEXT_CHARS,
   mergeVisualNotes,
+  preparedSourceToDocument,
   requirePdfSource,
-  truncateSourceTextForModel,
-  withModelSourceText,
+  requirePreparedSource,
   type SourcePage,
-} from '../functions/_document'
+} from '../_document'
+import { MODEL_ABSOLUTE_MAX_CHARS } from '../_sourceCoverage'
 
 describe('document preparation helpers', () => {
   it('requires a PDF source with base64 data', () => {
@@ -30,27 +30,30 @@ describe('document preparation helpers', () => {
     expect(detectExtractionQuality('This page has enough extracted text to be useful for grounded question generation. '.repeat(4))).toBe('strong')
   })
 
-  it('truncates oversized source text for model calls', () => {
-    const longText = 'x'.repeat(MAX_MODEL_SOURCE_TEXT_CHARS + 500)
-    const truncated = truncateSourceTextForModel(longText)
-
-    expect(truncated.text.length).toBeLessThan(longText.length)
-    expect(truncated.text).toContain('[SOURCE TEXT TRUNCATED FOR LENGTH]')
-    expect(truncated.warnings[0]).toContain('truncated')
-  })
-
-  it('adds truncation warnings to prepared source documents', () => {
-    const source = withModelSourceText({
+  it('uses full prepared source text without truncation', () => {
+    const payload = requirePreparedSource({
       fileName: 'note.pdf',
-      mimeType: 'application/pdf',
-      pages: [],
-      fullText: 'y'.repeat(MAX_MODEL_SOURCE_TEXT_CHARS + 100),
-      visualNotes: [],
-      warnings: [],
+      fullText: 'x'.repeat(MODEL_ABSOLUTE_MAX_CHARS - 100),
     })
 
-    expect(source.warnings.length).toBeGreaterThan(0)
-    expect(source.fullText).toContain('[SOURCE TEXT TRUNCATED FOR LENGTH]')
+    const document = preparedSourceToDocument(payload)
+    expect(document.fullText).toBe(payload.fullText)
+    expect(document.warnings).toEqual([])
+  })
+
+  it('limits a single model call to selected page ranges', () => {
+    const payload = requirePreparedSource({
+      fileName: 'note.pdf',
+      fullText: 'fallback',
+      pages: [
+        { pageNumber: 1, text: 'Page one', extractionQuality: 'strong' },
+        { pageNumber: 2, text: 'Page two', extractionQuality: 'strong' },
+      ],
+    })
+
+    const document = preparedSourceToDocument(payload, { pageNumbers: [2] })
+    expect(document.fullText).toContain('Page two')
+    expect(document.fullText).not.toContain('Page one')
   })
 
   it('merges VLM visual notes into the correct page', () => {

@@ -25,8 +25,12 @@ export function buildQuizPrompt(args: {
         .join('\n')}\n`
     : ''
 
-  return `Create a physiotherapy revision quiz using only SOURCE_TEXT.
+  const pageScope = args.source.pages.length
+    ? `\nScope: This request covers SOURCE_PAGES ${args.source.pages.map((page) => page.pageNumber).join(', ')} only. Every question must be grounded in those pages.\n`
+    : ''
 
+  return `Create a physiotherapy revision quiz using only SOURCE_TEXT.
+${pageScope}
 Rules:
 - Read the whole SOURCE_TEXT before writing questions.
 - Generate ${mcqCandidates} MCQ candidates and ${shortCandidates} short essay candidates.

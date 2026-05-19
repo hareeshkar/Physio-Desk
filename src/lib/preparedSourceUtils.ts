@@ -9,6 +9,9 @@ export function toPreparedSourcePayload(source: PreparedSource): PreparedSource 
   return {
     fileName: source.fileName,
     fullText: source.fullText,
+    pages: source.pages,
+    stats: source.stats,
+    warnings: source.warnings,
   }
 }
 
@@ -23,15 +26,19 @@ export function mergePreparedSourceFromResponse(
 ): StudyResource {
   if (!responseSource?.fullText?.trim()) return resource
 
+  const keepLocal = resource.preparedSource?.fullText?.length
+    && resource.preparedSource.fullText.length >= (responseSource.fullText?.length ?? 0)
+
   return {
     ...resource,
-    preparedSource: {
-      fileName: responseSource.fileName || resource.fileName,
-      fullText: resource.preparedSource?.fullText?.length
-        && resource.preparedSource.fullText.length >= responseSource.fullText.length
-        ? resource.preparedSource.fullText
-        : responseSource.fullText,
-    },
+    preparedSource: keepLocal
+      ? resource.preparedSource
+      : {
+          ...responseSource,
+          pages: responseSource.pages ?? resource.preparedSource?.pages,
+          stats: responseSource.stats ?? resource.preparedSource?.stats,
+          warnings: responseSource.warnings ?? resource.preparedSource?.warnings,
+        },
     preparedSourceExtractedAt: resource.preparedSourceExtractedAt ?? new Date().toISOString(),
   }
 }

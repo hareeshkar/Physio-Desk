@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildEvaluationPrompt, buildQuizPrompt } from '../functions/_minimaxStudy'
-import type { PreparedSourceDocument } from '../functions/_document'
+import { buildEvaluationPrompt, buildQuizPrompt } from '../_minimaxStudy'
+import type { PreparedSourceDocument } from '../_document'
 
 const source: PreparedSourceDocument = {
   fileName: 'note.pdf',

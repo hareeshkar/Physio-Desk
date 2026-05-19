@@ -1,13 +1,10 @@
-import type { Handler } from '@netlify/functions'
 import {
   EMBEDDING_MODEL_ID,
   getGeminiClient,
-  jsonResponse,
-  parseJsonBody,
-  safeError,
-} from './_gemini'
+} from '../_gemini'
+import { HttpError } from '../http'
 
-interface UploadResourceRequest {
+export interface UploadResourceRequest {
   fileName: string
   mimeType: string
   base64: string
@@ -25,19 +22,14 @@ const supportedMimeTypes = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ])
 
-export const handler: Handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return jsonResponse({})
-  if (event.httpMethod !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
+export async function handleUploadResource(payload: UploadResourceRequest) {
+  if (!isSupportedMime(payload.mimeType)) {
+    throw new HttpError('Unsupported file type for this study app.', 400)
+  }
 
   let createdStoreName: string | undefined
 
   try {
-    const payload = parseJsonBody<UploadResourceRequest>(event.body)
-
-    if (!isSupportedMime(payload.mimeType)) {
-      return jsonResponse({ error: 'Unsupported file type for this study app.' }, 400)
-    }
-
     const ai = getGeminiClient()
     const fileSearchStore = await ai.fileSearchStores.create({
       config: {
@@ -74,22 +66,22 @@ export const handler: Handler = async (event) => {
       throw new Error('File uploaded, but Gemini did not return a document name.')
     }
 
-    return jsonResponse({
+    return {
       fileSearchStoreName: fileSearchStore.name,
       documentName,
       mimeType: payload.mimeType,
       displayName: payload.fileName,
-    })
+    }
   } catch (error) {
     if (createdStoreName) {
       try {
         const ai = getGeminiClient()
         await ai.fileSearchStores.delete({ name: createdStoreName, config: { force: true } })
       } catch {
-        // Best-effort cleanup only. Return the original error to the UI.
+        // Best-effort cleanup only.
       }
     }
-    return safeError(error)
+    throw error
   }
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { generateQuiz, verifyQuiz } from '../lib/api'
+import { generateQuizWithFullCoverage, verifyQuizInBatches } from '../lib/studyGeneration'
 import {
   getQuestionsForResource,
   getResource,
@@ -97,14 +97,20 @@ export function Upload() {
       await saveResource(resource)
       setSavedResource(resource)
 
+      if (prepared.preparedSource.warnings?.length) {
+        for (const warning of prepared.preparedSource.warnings) {
+          logStep(warning)
+        }
+      }
+
       const previousQuestions = await getQuestionsForResource(resource.id)
-      logStep('Sending source text to MiniMax for questions…')
-      const generated = await generateQuiz({
+      const generated = await generateQuizWithFullCoverage({
         preparedSource: studySource,
         mode,
         counts: selectedCounts,
         choiceCount,
         previousQuestions: previousQuestions.map((q) => ({ prompt: q.prompt, topic: q.topic })),
+        onProgress: logStep,
       })
 
       resource = mergePreparedSourceFromResponse(resource, generated.preparedSource)
@@ -128,10 +134,10 @@ export function Upload() {
       }))
       const locallyValid = filterUsableQuestions(normalized, choiceCount).accepted
 
-      logStep('Verifying every question against the source text…')
-      let verified = await verifyQuiz({
+      let verified = await verifyQuizInBatches({
         preparedSource: activePreparedSource(resource, studySource),
         questions: locallyValid,
+        onProgress: logStep,
       })
 
       if (verified.warnings?.length) {
@@ -157,7 +163,7 @@ export function Upload() {
         shortEssay: selectedCounts.shortEssay,
       })) {
         logStep('Asking MiniMax for replacement candidates…')
-        const retryGenerated = await generateQuiz({
+        const retryGenerated = await generateQuizWithFullCoverage({
           preparedSource: activePreparedSource(resource, studySource),
           mode,
           counts: selectedCounts,
@@ -166,6 +172,7 @@ export function Upload() {
             ...previousQuestions,
             ...normalized,
           ].map((q) => ({ prompt: q.prompt, topic: q.topic })),
+          onProgress: logStep,
         })
 
         resource = mergePreparedSourceFromResponse(resource, retryGenerated.preparedSource)
@@ -180,9 +187,10 @@ export function Upload() {
           verificationStatus: 'pending',
         }))
         const retryValid = filterUsableQuestions(retryNormalized, choiceCount).accepted
-        verified = await verifyQuiz({
+        verified = await verifyQuizInBatches({
           preparedSource: activePreparedSource(resource, studySource),
           questions: retryValid,
+          onProgress: logStep,
         })
         accepted = [
           ...accepted,

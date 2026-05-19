@@ -1,11 +1,16 @@
 import * as pdfjs from 'pdfjs-dist'
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { buildPreparedSourceText, normalizeExtractedText, type ExtractedPdfPage } from './pdfTextFormat'
+import {
+  buildExtractionWarnings,
+  buildFullTextFromPages,
+  detectPageExtractionQuality,
+  normalizeExtractedText,
+  summarizeExtraction,
+  type SourcePageRecord,
+} from './sourceCoverage'
 import type { PreparedSource } from './types'
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker
-
-export { buildPreparedSourceText, normalizeExtractedText, type ExtractedPdfPage }
 
 export async function extractPdfTextFromFile(file: File): Promise<PreparedSource> {
   if ((file.type || 'application/pdf') !== 'application/pdf') {
@@ -16,7 +21,7 @@ export async function extractPdfTextFromFile(file: File): Promise<PreparedSource
   const doc = await pdfjs.getDocument({ data }).promise
 
   try {
-    const pages: ExtractedPdfPage[] = []
+    const pages: SourcePageRecord[] = []
 
     for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
       const page = await doc.getPage(pageNumber)
@@ -27,15 +32,28 @@ export async function extractPdfTextFromFile(file: File): Promise<PreparedSource
           .join(' '),
       )
 
-      pages.push({ pageNumber, text })
+      pages.push({
+        pageNumber,
+        text,
+        extractionQuality: detectPageExtractionQuality(text),
+      })
     }
 
-    const fullText = buildPreparedSourceText(pages)
+    const fullText = buildFullTextFromPages(pages)
     if (!fullText.trim()) {
       throw new Error('Could not extract readable text from this PDF on your device.')
     }
 
-    return { fileName: file.name, fullText }
+    const stats = summarizeExtraction(pages)
+    const warnings = buildExtractionWarnings(stats)
+
+    return {
+      fileName: file.name,
+      fullText,
+      pages,
+      stats,
+      warnings,
+    }
   } finally {
     await doc.destroy()
   }

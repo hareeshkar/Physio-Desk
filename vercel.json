@@ -1,0 +1,30 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/generate-quiz.ts": {
+      "maxDuration": 120,
+      "memory": 1024
+    },
+    "api/verify-quiz.ts": {
+      "maxDuration": 90,
+      "memory": 1024
+    },
+    "api/evaluate-answer.ts": {
+      "maxDuration": 90
+    },
+    "api/upload-resource.ts": {
+      "maxDuration": 60
+    },
+    "api/delete-store.ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
