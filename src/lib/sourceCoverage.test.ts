@@ -27,6 +27,14 @@ describe('sourceCoverage', () => {
     expect(chunks.flatMap((chunk) => chunk.pageNumbers)).toEqual([1, 2, 3, 4, 5])
   })
 
+  it('keeps moderate 76-page notes in one chunk at the default budget', () => {
+    const pages = Array.from({ length: 76 }, (_, index) => page(index + 1, 'x'.repeat(470)))
+    const chunks = planPageChunks(pages)
+
+    expect(chunks).toHaveLength(1)
+    expect(chunks[0]?.pageNumbers).toHaveLength(76)
+  })
+
   it('selects only requested pages for model calls', () => {
     const pages = [page(1, 'one'), page(2, 'two'), page(3, 'three')]
     const selected = selectPagesForModel(pages, [2, 3])

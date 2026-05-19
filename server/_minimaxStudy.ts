@@ -1,5 +1,11 @@
 import { minimaxText, type MiniMaxMessage, type MiniMaxTool } from './_minimax.js'
 import type { PreparedSourceDocument } from './_document.js'
+import { estimateQuizMaxTokens, estimateVerifyMaxTokens } from './_studyTokens.js'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+import { buildVerifySourceText } from './_verifySourceSlice.js'
 import {
   normalizeEvaluationResponse,
   normalizeQuizResponse,
@@ -31,6 +37,7 @@ export function buildQuizPrompt(args: {
 
   return `Create a physiotherapy revision quiz using only SOURCE_TEXT.
 ${pageScope}
+Speed: call submit_quiz immediately with minimal internal reasoning.
 Rules:
 - Read the whole SOURCE_TEXT before writing questions.
 - Generate ${mcqCandidates} MCQ candidates and ${shortCandidates} short essay candidates.
@@ -60,7 +67,7 @@ export async function generateMiniMaxQuiz(args: {
       systemMessage(),
       { role: 'user', content: buildQuizPrompt(args) },
     ],
-    maxTokens: 8192,
+    maxTokens: estimateQuizMaxTokens(args.requestedMcq, args.requestedShort),
     tools: [quizTool],
     toolName: 'submit_quiz',
   })
@@ -75,19 +82,46 @@ export async function verifyMiniMaxQuestion(args: {
   return verifyMiniMaxQuestions({ source: args.source, questions: [args.question] })
 }
 
+export function buildVerifyPrompt(args: {
+  source: PreparedSourceDocument
+  questions: unknown[]
+}) {
+  const verifyText = buildVerifySourceText({
+    pages: args.source.pages,
+    fullText: args.source.fullText,
+    questions: Array.isArray(args.questions)
+      ? (args.questions as Array<{ pageNumber?: number | null }>)
+      : [],
+  })
+
+  return `Verify QUESTIONS against SOURCE_TEXT only. Call submit_verification immediately with minimal reasoning.
+Reject if: unsupported answer, missing evidence, outside knowledge, or MCQ expectedAnswer mismatches correctChoiceId text.
+Return one result per question.
+
+QUESTIONS:
+${JSON.stringify(args.questions)}
+
+SOURCE_TEXT:
+${verifyText}`
+}
+
 export async function verifyMiniMaxQuestions(args: {
   source: PreparedSourceDocument
   questions: unknown[]
 }): Promise<NormalizedVerificationResponse> {
+  const questions = Array.isArray(args.questions) ? args.questions : []
+  const shortEssayCount = questions.filter(
+    (question) => isRecord(question) && question.type === 'short_essay',
+  ).length
   const content = await minimaxText({
     messages: [
       systemMessage(),
       {
         role: 'user',
-        content: `Verify all QUESTIONS against SOURCE_TEXT. For each reject if: answer unsupported, evidence quote missing, outside knowledge required, or MCQ expectedAnswer mismatches the correctChoiceId option text. Return one result per question. Call submit_verification.\n\nQUESTIONS:\n${JSON.stringify(args.questions)}\n\nSOURCE_TEXT:\n${args.source.fullText}`,
+        content: buildVerifyPrompt(args),
       },
     ],
-    maxTokens: 4096,
+    maxTokens: estimateVerifyMaxTokens(questions.length, { shortEssayCount }),
     tools: [verificationTool],
     toolName: 'submit_verification',
   })
@@ -180,7 +214,8 @@ ${args.source.fullText}`
 function systemMessage(): MiniMaxMessage {
   return {
     role: 'system',
-    content: 'You are a strictly grounded physiotherapy study assistant. Use only the provided source text. Do not infer outside medical facts. Always use the requested tool for structured output.',
+    content:
+      'You are a strictly grounded physiotherapy study assistant. Use only the provided source text. Do not infer outside medical facts. Always call the requested tool immediately with minimal internal reasoning.',
   }
 }
 

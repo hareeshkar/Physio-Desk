@@ -6,6 +6,25 @@
 - GI PDF smoke: `npm run smoke:gi` — generate ~37s, verify ~21s (MiniMax OK; Netlify was the blocker).
 - API routes: `/api/generate-quiz`, `/api/verify-quiz`, etc.
 
+## Real PDF timings — standard `MiniMax-M2.7` only (2026-05-19)
+
+No highspeed model (not on Token Plan Plus). Optimizations: 55k single-chunk budget, split quotas, capped verify batches, page-scoped verify source, dynamic `max_tokens`, “call tool immediately” prompts.
+
+| PDF | Mode | Parse | Generate | Verify | Total | Chunks |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| GI (`Gastrointestinal Pathology ..pdf`) | 2 MCQ | 0.7s | 32s | 16s | **49s** | 1 |
+| Reproductive (`7. Reproductive System.pdf`) | 20 MCQ | 0.4s | 81s | 39s | **120s** | 1 |
+| Reproductive | 15 MCQ | 0.4s | 66s | 34s | **100s** | 1 |
+| Reproductive | 5 short essay | 0.3s | 51s | 46s | **97s** | 1 |
+
+Commands:
+
+```bash
+npm run smoke:gi
+npm run smoke:pdf -- --pdf "7. Reproductive System.pdf" --mcq 20
+npm run smoke:pdf:suite   # all four scenarios (~6–8 min)
+```
+
 ---
 
 **Date**: 2026-05-16  

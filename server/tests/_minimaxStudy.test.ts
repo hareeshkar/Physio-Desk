@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildEvaluationPrompt, buildQuizPrompt } from '../_minimaxStudy'
+import { buildEvaluationPrompt, buildQuizPrompt, buildVerifyPrompt } from '../_minimaxStudy'
 import type { PreparedSourceDocument } from '../_document'
 
 const source: PreparedSourceDocument = {
@@ -34,6 +34,28 @@ describe('buildQuizPrompt', () => {
     })
 
     expect(prompt).toContain('Generate 7 MCQ candidates and 0 short essay candidates.')
+  })
+})
+
+describe('buildVerifyPrompt', () => {
+  it('asks for immediate tool output and scopes source text', () => {
+    const prompt = buildVerifyPrompt({
+      source: {
+        ...source,
+        pages: [
+          { pageNumber: 1, text: 'one', extractionQuality: 'strong' },
+          { pageNumber: 2, text: 'two', extractionQuality: 'strong' },
+          { pageNumber: 3, text: 'three', extractionQuality: 'strong' },
+        ],
+        fullText:
+          'SOURCE_PAGE 1\nTEXT: one\n\nSOURCE_PAGE 2\nTEXT: two\n\nSOURCE_PAGE 3\nTEXT: three',
+      },
+      questions: [{ id: 'q1', pageNumber: 3 }],
+    })
+
+    expect(prompt).toContain('submit_verification immediately')
+    expect(prompt).toContain('TEXT: three')
+    expect(prompt).not.toContain('TEXT: one')
   })
 })
 

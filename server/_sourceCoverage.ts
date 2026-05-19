@@ -7,8 +7,8 @@ export interface SourcePageRecord extends ExtractedPdfPage {
   visualNotes?: string
 }
 
-/** Per-chunk budget sized for serverless-friendly MiniMax calls (~20–35s). */
-export const GENERATE_CHUNK_TARGET_CHARS = 28_000
+/** Per-chunk budget for Vercel (300s). ~55k keeps 76-page notes in one generate call when text is moderate. */
+export const GENERATE_CHUNK_TARGET_CHARS = 55_000
 
 /** Hard ceiling before we refuse a single prompt (MiniMax context is much larger). */
 export const MODEL_ABSOLUTE_MAX_CHARS = 180_000

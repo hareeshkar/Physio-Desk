@@ -12,6 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:gi": "vite-node scripts/smoke-gi-pdf.mjs",
+    "smoke:pdf": "vite-node scripts/smoke-pdf-scenarios.mjs",
+    "smoke:pdf:suite": "vite-node scripts/smoke-pdf-scenarios.mjs --suite",
     "verify:gemini-structure": "vite-node scripts/verify-gemini-structure.mjs",
     "verify:minimax-structure": "vite-node scripts/verify-minimax-structure.mjs"
   },
