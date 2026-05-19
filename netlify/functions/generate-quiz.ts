@@ -4,11 +4,12 @@ import {
   parseJsonBody,
   safeError,
 } from './_gemini'
-import { prepareSourceDocument, requirePdfSource, withModelSourceText } from './_document'
+import { resolveStudySource, withModelSourceText } from './_document'
 import { generateMiniMaxQuiz } from './_minimaxStudy'
 
 interface GenerateQuizRequest {
-  pdfSource: unknown
+  pdfSource?: unknown
+  preparedSource?: unknown
   mode: string
   counts: {
     mcq: number
@@ -24,9 +25,9 @@ export const handler: Handler = async (event) => {
 
   try {
     const payload = parseJsonBody<GenerateQuizRequest>(event.body)
-    const pdfSource = requirePdfSource(payload.pdfSource)
-    const source = withModelSourceText(await prepareSourceDocument(pdfSource, {
-      enableVlm: false,
+    const source = withModelSourceText(await resolveStudySource({
+      pdfSource: payload.pdfSource,
+      preparedSource: payload.preparedSource,
     }))
 
     const generated = await generateMiniMaxQuiz({

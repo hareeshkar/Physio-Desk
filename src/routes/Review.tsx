@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { evaluateAnswer, pdfSourceFromFile } from '../lib/api'
+import { evaluateAnswer } from '../lib/api'
 import {
   buildFailedEssayEvaluationAttempt,
   buildRetryEssayEvaluationAttempt,
@@ -8,8 +8,9 @@ import {
   getPendingEssayEvaluations,
   isLatestAttempt,
 } from '../lib/deferredEssayEvaluation'
-import { getAttemptsForSession, getQuestionsForSession, getResource, getSession, saveAttempt } from '../lib/db'
+import { getAttemptsForSession, getQuestionsForSession, getResource, getSession, saveAttempt, saveResource } from '../lib/db'
 import { buildFeedbackSections } from '../lib/feedbackFormat'
+import { ensurePreparedSourceForResource, toPreparedSourcePayload } from '../lib/preparedSource'
 import { getLatestAttemptsByQuestion, getSessionProgress, getWeakTopics, orderQuestionsForSession } from '../lib/session'
 import type { AnswerAttempt, Question, QuizSession } from '../lib/types'
 
@@ -53,14 +54,42 @@ export function Review() {
     async function evaluatePendingEssays() {
       if (!session) return
       setEvaluatingCount(pending.length)
-      let pdfSource: Awaited<ReturnType<typeof pdfSourceFromFile>>
 
       try {
         const resource = await getResource(session.resourceId)
         if (!resource) throw new Error('Saved PDF was not found on this device.')
-        pdfSource = await pdfSourceFromFile(new File([resource.fileBlob], resource.fileName, {
-          type: resource.mimeType || 'application/pdf',
-        }))
+
+        const preparedSource = await ensurePreparedSourceForResource(resource)
+        if (!resource.preparedSource?.fullText) {
+          await saveResource({
+            ...resource,
+            preparedSource,
+            preparedSourceExtractedAt: new Date().toISOString(),
+          })
+        }
+
+        const studySource = { preparedSource: toPreparedSourcePayload(preparedSource) }
+
+        for (const item of pending) {
+          inFlightAttemptIds.current.add(item.attempt.id)
+          await evaluatePendingEssayAttempt({
+            attempt: item.attempt,
+            attempts: () => getAttemptsForSession(sessionId),
+            evaluate: () => evaluateAnswer({
+              ...studySource,
+              question: item.question,
+              userAnswer: item.attempt.userAnswer,
+            }),
+            save: saveAttempt,
+            now: () => new Date().toISOString(),
+          })
+
+          if (!cancelled) {
+            setAttempts(await getAttemptsForSession(sessionId))
+            setEvaluatingCount((count) => Math.max(0, count - 1))
+          }
+          inFlightAttemptIds.current.delete(item.attempt.id)
+        }
       } catch (error) {
         for (const item of pending) {
           const latestBeforeFailure = await getAttemptsForSession(sessionId)
@@ -72,28 +101,6 @@ export function Review() {
           setAttempts(await getAttemptsForSession(sessionId))
           setEvaluatingCount(0)
         }
-        return
-      }
-
-      for (const item of pending) {
-        inFlightAttemptIds.current.add(item.attempt.id)
-        await evaluatePendingEssayAttempt({
-          attempt: item.attempt,
-          attempts: () => getAttemptsForSession(sessionId),
-          evaluate: () => evaluateAnswer({
-            pdfSource,
-            question: item.question,
-            userAnswer: item.attempt.userAnswer,
-          }),
-          save: saveAttempt,
-          now: () => new Date().toISOString(),
-        })
-
-        if (!cancelled) {
-          setAttempts(await getAttemptsForSession(sessionId))
-          setEvaluatingCount((count) => Math.max(0, count - 1))
-        }
-        inFlightAttemptIds.current.delete(item.attempt.id)
       }
     }
 

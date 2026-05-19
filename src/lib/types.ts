@@ -7,6 +7,11 @@ export interface Choice {
   text: string
 }
 
+export interface PreparedSource {
+  fileName: string
+  fullText: string
+}
+
 export interface StudyResource {
   id: string
   title: string
@@ -15,6 +20,8 @@ export interface StudyResource {
   size: number
   createdAt: string
   fileBlob: Blob
+  preparedSource?: PreparedSource
+  preparedSourceExtractedAt?: string
   fileSearchStoreName?: string
   documentName?: string
   indexStatus: 'local' | 'indexing' | 'ready' | 'failed'

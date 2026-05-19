@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { generateQuiz, pdfSourceFromFile, verifyQuiz } from '../lib/api'
+import { generateQuiz, verifyQuiz } from '../lib/api'
 import {
   getQuestionsForResource,
   getResource,
@@ -8,10 +8,15 @@ import {
   saveResource,
   saveSession,
 } from '../lib/db'
+import {
+  ensurePreparedSourceForFile,
+  mergePreparedSourceFromResponse,
+  toPreparedSourcePayload,
+} from '../lib/preparedSource'
 import { hasExactQuestionCounts, selectQuestionsForSession } from '../lib/questionSelection'
 import { DEFAULT_QUIZ_MODE_ID, getQuizMode, normalizeQuestionCounts, QUIZ_MODES, type QuizModeId } from '../lib/quizModes'
 import { filterUsableQuestions } from '../lib/validation'
-import type { Question, QuizSession, StudyResource } from '../lib/types'
+import type { PreparedSource, Question, QuizSession, StudyResource } from '../lib/types'
 
 export function Upload() {
   const navigate = useNavigate()
@@ -84,20 +89,27 @@ export function Upload() {
 
       logStep('Saving your note on this device…')
       resource = { ...resource, fileBlob: file, mimeType: 'application/pdf', indexStatus: 'ready' }
+
+      logStep('Reading PDF text on this device…')
+      const prepared = await ensurePreparedSourceForFile(file, resource)
+      resource = prepared.resource
+      const studySource = toPreparedSourcePayload(prepared.preparedSource)
       await saveResource(resource)
       setSavedResource(resource)
 
       const previousQuestions = await getQuestionsForResource(resource.id)
-      logStep('Extracting page-by-page source text…')
-      const pdfSource = await pdfSourceFromFile(file)
-      logStep('Sending to MiniMax for source-grounded questions…')
+      logStep('Sending source text to MiniMax for questions…')
       const generated = await generateQuiz({
-        pdfSource,
+        preparedSource: studySource,
         mode,
         counts: selectedCounts,
         choiceCount,
         previousQuestions: previousQuestions.map((q) => ({ prompt: q.prompt, topic: q.topic })),
       })
+
+      resource = mergePreparedSourceFromResponse(resource, generated.preparedSource)
+      await saveResource(resource)
+      setSavedResource(resource)
 
       logStep('Filtering weak or repeated questions…')
       if (generated.warnings?.length) {
@@ -118,8 +130,7 @@ export function Upload() {
 
       logStep('Verifying every question against the source text…')
       let verified = await verifyQuiz({
-        preparedSource: generated.preparedSource ?? { fileName: pdfSource.fileName, fullText: '' },
-        pdfSource: generated.preparedSource ? undefined : pdfSource,
+        preparedSource: activePreparedSource(resource, studySource),
         questions: locallyValid,
       })
 
@@ -147,7 +158,7 @@ export function Upload() {
       })) {
         logStep('Asking MiniMax for replacement candidates…')
         const retryGenerated = await generateQuiz({
-          pdfSource,
+          preparedSource: activePreparedSource(resource, studySource),
           mode,
           counts: selectedCounts,
           choiceCount,
@@ -156,6 +167,11 @@ export function Upload() {
             ...normalized,
           ].map((q) => ({ prompt: q.prompt, topic: q.topic })),
         })
+
+        resource = mergePreparedSourceFromResponse(resource, retryGenerated.preparedSource)
+        await saveResource(resource)
+        setSavedResource(resource)
+
         const retryNormalized = retryGenerated.questions.map((q): Question => ({
           ...q,
           id: q.id || crypto.randomUUID(),
@@ -165,8 +181,7 @@ export function Upload() {
         }))
         const retryValid = filterUsableQuestions(retryNormalized, choiceCount).accepted
         verified = await verifyQuiz({
-          preparedSource: retryGenerated.preparedSource ?? generated.preparedSource ?? { fileName: pdfSource.fileName, fullText: '' },
-          pdfSource: (retryGenerated.preparedSource ?? generated.preparedSource) ? undefined : pdfSource,
+          preparedSource: activePreparedSource(resource, studySource),
           questions: retryValid,
         })
         accepted = [
@@ -225,7 +240,17 @@ export function Upload() {
           <input
             type="file"
             accept=".pdf,.txt,.md,.html,.doc,.docx,.ppt,.pptx,application/pdf,text/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const nextFile = e.target.files?.[0] ?? null
+              setFile(nextFile)
+              if (nextFile && savedResource) {
+                setSavedResource({
+                  ...savedResource,
+                  preparedSource: undefined,
+                  preparedSourceExtractedAt: undefined,
+                })
+              }
+            }}
           />
           <span>
             {file
@@ -303,6 +328,10 @@ export function Upload() {
       </section>
     </main>
   )
+}
+
+function activePreparedSource(resource: StudyResource, fallback: PreparedSource) {
+  return toPreparedSourcePayload(resource.preparedSource ?? fallback)
 }
 
 function safeQuestionCounts(mcq: number, shortEssay: number) {

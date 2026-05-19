@@ -1,7 +1,9 @@
-import type { EvaluationResult, Question } from './types'
+import type { EvaluationResult, PreparedSource, Question } from './types'
 
 const functionBase = '/.netlify/functions'
 const MAX_PDF_UPLOAD_BYTES = 4 * 1024 * 1024
+
+export type PreparedSourcePayload = PreparedSource
 
 export interface PdfSourcePayload {
   fileName: string
@@ -9,10 +11,9 @@ export interface PdfSourcePayload {
   base64: string
 }
 
-export interface PreparedSourcePayload {
-  fileName: string
-  fullText: string
-}
+export type StudySourcePayload =
+  | { preparedSource: PreparedSourcePayload; pdfSource?: never }
+  | { pdfSource: PdfSourcePayload; preparedSource?: never }
 
 export async function uploadResourceFile(file: File) {
   const base64 = await fileToBase64(file)
@@ -28,8 +29,7 @@ export async function uploadResourceFile(file: File) {
   })
 }
 
-export async function generateQuiz(payload: {
-  pdfSource: PdfSourcePayload
+export async function generateQuiz(payload: StudySourcePayload & {
   mode: string
   counts: { mcq: number; shortEssay: number }
   choiceCount: 4 | 5
@@ -47,9 +47,7 @@ export async function generateQuiz(payload: {
   )
 }
 
-export async function verifyQuiz(payload: {
-  pdfSource?: PdfSourcePayload
-  preparedSource?: PreparedSourcePayload
+export async function verifyQuiz(payload: StudySourcePayload & {
   questions: Question[]
 }) {
   return postJson<{ acceptedQuestions: Question[]; rejectedQuestions: unknown[]; warnings?: string[] }>(
@@ -59,9 +57,7 @@ export async function verifyQuiz(payload: {
   )
 }
 
-export async function evaluateAnswer(payload: {
-  pdfSource?: PdfSourcePayload
-  preparedSource?: PreparedSourcePayload
+export async function evaluateAnswer(payload: StudySourcePayload & {
   question: Question
   userAnswer?: string
   selectedChoiceId?: string
@@ -74,6 +70,7 @@ export async function deleteRemoteStore(fileSearchStoreName: string) {
   return postJson<{ deleted: boolean }>('/delete-store', { fileSearchStoreName })
 }
 
+/** Legacy fallback when prepared text is unavailable. */
 export async function pdfSourceFromFile(file: File): Promise<PdfSourcePayload> {
   if ((file.type || 'application/pdf') !== 'application/pdf') {
     throw new Error('MiniMax study generation currently supports PDF files only.')
@@ -111,7 +108,7 @@ async function postJson<T>(
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(
-        'The study server took too long to respond. Large PDFs can time out — try fewer questions, a shorter note, or try again in a moment.',
+        'The study server took too long to respond. Try fewer questions or try again in a moment.',
       )
     }
 
@@ -140,7 +137,7 @@ async function postJson<T>(
 
 function parseApiError(rawBody: string, contentType: string, status: number) {
   if (rawBody.includes('Inactivity Timeout')) {
-    return 'The server timed out while processing your PDF. Try quick mode, a shorter note, or wait a minute and retry.'
+    return 'The server timed out. Your note text is stored on this device — try quick mode or retry in a moment.'
   }
 
   if (contentType.includes('application/json')) {
@@ -153,7 +150,7 @@ function parseApiError(rawBody: string, contentType: string, status: number) {
   }
 
   if (status === 504 || status === 502) {
-    return 'The study server timed out. Large PDFs can take longer — try fewer questions or a shorter note.'
+    return 'The study server timed out. Try fewer questions or retry in a moment.'
   }
 
   return 'Request failed'

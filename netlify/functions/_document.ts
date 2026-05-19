@@ -181,7 +181,11 @@ export async function resolveStudySource(args: {
     return preparedSourceToDocument(requirePreparedSource(args.preparedSource))
   }
 
-  return prepareSourceDocument(requirePdfSource(args.pdfSource), { enableVlm: false })
+  if (args.pdfSource) {
+    return prepareSourceDocument(requirePdfSource(args.pdfSource), { enableVlm: false })
+  }
+
+  throw new Error('Request must include preparedSource or pdfSource.')
 }
 
 export function truncateSourceTextForModel(fullText: string) {
