@@ -58,7 +58,10 @@ export async function handleUploadResource(payload: UploadResourceRequest) {
     }
 
     if (operation.error) {
-      throw new Error(operation.error?.message ?? 'File indexing did not complete.')
+      const message = typeof operation.error.message === 'string'
+        ? operation.error.message
+        : 'File indexing did not complete.'
+      throw new Error(message)
     }
 
     const documentName = operation.response?.documentName

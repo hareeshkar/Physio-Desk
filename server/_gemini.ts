@@ -1,4 +1,8 @@
-import { GoogleGenAI, type types } from '@google/genai'
+import {
+  GoogleGenAI,
+  type Content,
+  type GenerateContentParameters,
+} from '@google/genai'
 
 export const MODEL_ID = 'gemini-3-flash-preview'
 export const FALLBACK_MODEL_IDS = ['gemini-3.1-flash-lite', 'gemini-3.1-flash-lite-preview'] as const
@@ -50,7 +54,7 @@ export function requirePdfSource(value: unknown): DirectPdfSource {
   return { fileName, mimeType, base64 }
 }
 
-export function buildDirectPdfContents(instructions: string, source: DirectPdfSource): types.Content[] {
+export function buildDirectPdfContents(instructions: string, source: DirectPdfSource): Content[] {
   return [
     {
       role: 'user',
@@ -99,7 +103,7 @@ function normalizeExtractedPdfText(text: string | undefined) {
 
 export async function generateContentWithFallback(
   ai: GenerateContentClient,
-  params: types.GenerateContentParameters,
+  params: GenerateContentParameters,
 ) {
   try {
     return await ai.models.generateContent(params)
@@ -129,7 +133,7 @@ export async function generateContentWithFallback(
 
 export async function generateContentWithPdfFallback(
   ai: GenerateContentClient,
-  params: Omit<types.GenerateContentParameters, 'contents'>,
+  params: Omit<GenerateContentParameters, 'contents'>,
   instructions: string,
   source: DirectPdfSource,
   buildTextContents = buildWholePdfTextContents,
@@ -530,7 +534,7 @@ function normalizeVerificationResult(
   index: number,
   context: string,
   warnings: string[],
-) {
+): NormalizedVerificationResult | null {
   const record = toRecord(value, `${context}: result ${index + 1}`, warnings)
   const questionId = toOptionalString(record.questionId)
   const verdict = record.verdict === 'accepted' || record.verdict === 'rejected'

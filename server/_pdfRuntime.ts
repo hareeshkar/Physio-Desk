@@ -7,7 +7,7 @@ let pdfParseModule: PdfParseModule | null = null
 export async function ensurePdfGeometryGlobals() {
   if (globalThis.DOMMatrix && globalThis.DOMPoint && globalThis.DOMRect) return
 
-  const geometry = await import('@napi-rs/canvas/geometry')
+  const geometry = await import('@napi-rs/canvas/geometry.js')
   globalThis.DOMMatrix ??= geometry.DOMMatrix
   globalThis.DOMPoint ??= geometry.DOMPoint
   globalThis.DOMRect ??= geometry.DOMRect
