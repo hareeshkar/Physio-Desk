@@ -1,0 +1,59 @@
+{
+  "at": "2026-05-19T07:36:21.448Z",
+  "pdf": "Gastrointestinal Pathology ..pdf",
+  "mcq": 2,
+  "short": 0,
+  "pages": 39,
+  "sourceChars": 9135,
+  "generateJobs": 1,
+  "generated": 3,
+  "verifyInput": 3,
+  "parseMs": 335.3,
+  "generateMs": 22758.7,
+  "verifyMs": 13685.8,
+  "totalMs": 36782.1,
+  "verifyBatchMs": [
+    {
+      "batch": 1,
+      "size": 3,
+      "ms": 13685.6,
+      "networkMs": 13684.7
+    }
+  ],
+  "marks": [
+    {
+      "name": "runStart",
+      "atMs": 0.010792000000009239
+    },
+    {
+      "name": "parseDone",
+      "atMs": 337.338833,
+      "parseMs": 335.3
+    },
+    {
+      "name": "generateJob1",
+      "atMs": 23096.116667000002,
+      "ms": 22758.6,
+      "networkMs": 22757.8,
+      "mcq": 2,
+      "pages": 0
+    },
+    {
+      "name": "generateDone",
+      "atMs": 23096.149583000002,
+      "generateMs": 22758.7,
+      "count": 3
+    },
+    {
+      "name": "verifyBatch1",
+      "atMs": 36782.06825,
+      "ms": 13685.6,
+      "networkMs": 13684.7
+    },
+    {
+      "name": "runEnd",
+      "atMs": 36782.090375,
+      "totalMs": 36782.1
+    }
+  ]
+}

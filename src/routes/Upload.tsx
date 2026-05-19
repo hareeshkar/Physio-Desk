@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { generateQuizWithFullCoverage, verifyQuizInBatches } from '../lib/studyGeneration'
+import { generateQuizWithFullCoverage, verifyQuizInBatches, type StudyPhaseTimings } from '../lib/studyGeneration'
+import { createClientTimer } from '../lib/timing'
 import {
   getQuestionsForResource,
   getResource,
@@ -104,11 +105,14 @@ export function Upload() {
           indexStatus: 'ready',
         }
 
+      const sessionTimer = createClientTimer()
       logStep('Saving your note on this device…')
       resource = { ...resource, fileBlob: file, mimeType: 'application/pdf', indexStatus: 'ready' }
 
       logStep('Reading PDF text on this device…')
-      const prepared = await ensurePreparedSourceForFile(file, resource)
+      const prepared = await sessionTimer.measure('pdfExtractClient', () =>
+        ensurePreparedSourceForFile(file, resource),
+      )
       resource = prepared.resource
       const studySource = toPreparedSourcePayload(prepared.preparedSource)
       await saveResource(resource)
@@ -119,6 +123,7 @@ export function Upload() {
       }
 
       const previousQuestions = await getQuestionsForResource(resource.id)
+      const phaseTimings: StudyPhaseTimings = { generateMs: 0, verifyMs: 0, verifyBatches: [] }
       const generated = await generateQuizWithFullCoverage({
         preparedSource: studySource,
         mode,
@@ -126,6 +131,7 @@ export function Upload() {
         choiceCount,
         previousQuestions: previousQuestions.map((q) => ({ prompt: q.prompt, topic: q.topic })),
         onProgress: logStep,
+        onTimings: (partial) => Object.assign(phaseTimings, partial),
       })
 
       resource = mergePreparedSourceFromResponse(resource, generated.preparedSource)
@@ -154,6 +160,7 @@ export function Upload() {
         questions: locallyValid,
         counts: selectedCounts,
         onProgress: logStep,
+        onTimings: (partial) => Object.assign(phaseTimings, partial),
       })
 
       for (const warning of dedupeStrings(verified.warnings ?? [])) {
@@ -231,6 +238,11 @@ export function Upload() {
       })) {
         throw new Error('MiniMax could not create strongly grounded questions from this file yet.')
       }
+
+      sessionTimer.log('[Physio Study timing]')
+      logStep(
+        `Done in ${(phaseTimings.generateMs + phaseTimings.verifyMs).toFixed(0)}ms model time (generate ${phaseTimings.generateMs.toFixed(0)}ms, verify ${phaseTimings.verifyMs.toFixed(0)}ms).`,
+      )
 
       const session: QuizSession = {
         id: sessionId,

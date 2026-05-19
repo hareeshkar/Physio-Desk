@@ -21,7 +21,7 @@ describe('buildQuizPrompt', () => {
       previousQuestions: [],
     })
 
-    expect(prompt).toContain('Generate 0 MCQ candidates and 4 short essay candidates.')
+    expect(prompt).toContain('Create 0 MCQ + 4 short essay candidates.')
   })
 
   it('does not request short essay candidates when short essay count is zero', () => {
@@ -33,7 +33,7 @@ describe('buildQuizPrompt', () => {
       previousQuestions: [],
     })
 
-    expect(prompt).toContain('Generate 7 MCQ candidates and 0 short essay candidates.')
+    expect(prompt).toContain('Create 6 MCQ + 0 short essay candidates.')
   })
 })
 
@@ -53,7 +53,7 @@ describe('buildVerifyPrompt', () => {
       questions: [{ id: 'q1', pageNumber: 3 }],
     })
 
-    expect(prompt).toContain('submit_verification immediately')
+    expect(prompt).toContain('submit_verification now')
     expect(prompt).toContain('TEXT: three')
     expect(prompt).not.toContain('TEXT: one')
   })

@@ -43,7 +43,7 @@ describe('selectQuestionsForVerification', () => {
 
     const selected = selectQuestionsForVerification(questions, { mcq: 20, shortEssay: 0 })
 
-    expect(selected).toHaveLength(22)
+    expect(selected).toHaveLength(21)
     expect(selected.every((question) => question.type === 'mcq')).toBe(true)
   })
 })

@@ -47,7 +47,9 @@ export async function minimaxText(args: {
   maxTokens?: number
   tools?: MiniMaxTool[]
   toolName?: string
+  requireTool?: boolean
   fetchImpl?: FetchLike
+  onNetworkMs?: (durationMs: number) => void
 }) {
   const body: Record<string, unknown> = {
     model: 'MiniMax-M2.7',
@@ -59,10 +61,19 @@ export async function minimaxText(args: {
 
   if (args.tools?.length) {
     body.tools = args.tools
-    body.tool_choice = 'auto'
+    body.tool_choice =
+      args.requireTool && args.toolName
+        ? { type: 'function', function: { name: args.toolName } }
+        : 'auto'
   }
 
-  const call = () => minimaxPost('/v1/text/chatcompletion_v2', body, args.apiKey, args.fetchImpl)
+  const call = async () => {
+    const networkStart = performance.now()
+    const response = await minimaxPost('/v1/text/chatcompletion_v2', body, args.apiKey, args.fetchImpl)
+    args.onNetworkMs?.(performance.now() - networkStart)
+    return response
+  }
+
   const response = await call()
 
   if (!args.toolName) {
@@ -72,7 +83,7 @@ export async function minimaxText(args: {
   const toolArguments = await extractMiniMaxToolArgumentsWithRepair({
     response,
     toolName: args.toolName,
-    repair: call,
+    repair: () => call(),
   })
 
   return JSON.stringify(toolArguments)
@@ -98,7 +109,7 @@ export async function minimaxVlm(args: {
   return content
 }
 
-const DEFAULT_MINIMAX_TIMEOUT_MS = 120_000
+const DEFAULT_MINIMAX_TIMEOUT_MS = 180_000
 
 export async function minimaxPost(
   path: string,

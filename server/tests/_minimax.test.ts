@@ -145,6 +145,7 @@ describe('MiniMax API callers', () => {
     expect(body.temperature).toBe(1)
     expect(body.max_tokens).toBeGreaterThanOrEqual(256)
     expect(body.tools[0].function.name).toBe('submit_quiz')
+    expect(body.tool_choice).toBe('auto')
   })
 
   it('calls VLM with a base64 data URI image', async () => {

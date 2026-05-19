@@ -11,7 +11,7 @@ export function selectQuestionsForVerification(
   counts: QuestionCounts,
   options: { mcqBuffer?: number; shortBuffer?: number } = {},
 ): Question[] {
-  const mcqBuffer = options.mcqBuffer ?? 2
+  const mcqBuffer = options.mcqBuffer ?? 1
   const shortBuffer = options.shortBuffer ?? 1
   const mcqLimit = counts.mcq > 0 ? counts.mcq + mcqBuffer : 0
   const shortLimit = counts.shortEssay > 0 ? counts.shortEssay + shortBuffer : 0

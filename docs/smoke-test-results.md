@@ -17,9 +17,19 @@ No highspeed model (not on Token Plan Plus). Optimizations: 55k single-chunk bud
 | Reproductive | 15 MCQ | 0.4s | 66s | 34s | **100s** | 1 |
 | Reproductive | 5 short essay | 0.3s | 51s | 46s | **97s** | 1 |
 
+### Round 2 — parallel verify + parallel generate (2026-05-19)
+
+Further optimizations (still `MiniMax-M2.7` only): compact verify JSON, forced verify tool choice, parallel verify batches (2×), parallel generate for ≥14 MCQ on large PDFs, +1 MCQ buffer, ms timing on every phase.
+
+| PDF | Mode | Parse | Generate | Verify | **Total** |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Reproductive | 20 MCQ | 333ms | 73.0s | 36.1s | **109.4s** |
+| GI | 2 MCQ | (see `docs/benchmark-latest.json`) | | | |
+
 Commands:
 
 ```bash
+npm run benchmark:study -- --pdf "7. Reproductive System.pdf" --mcq 20
 npm run smoke:gi
 npm run smoke:pdf -- --pdf "7. Reproductive System.pdf" --mcq 20
 npm run smoke:pdf:suite   # all four scenarios (~6–8 min)

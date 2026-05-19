@@ -1,10 +1,7 @@
 import { minimaxText, type MiniMaxMessage, type MiniMaxTool } from './_minimax.js'
 import type { PreparedSourceDocument } from './_document.js'
-import { estimateQuizMaxTokens, estimateVerifyMaxTokens } from './_studyTokens.js'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
+import { estimateQuizMaxTokens, estimateVerifyMaxTokens, MCQ_GENERATION_BUFFER, SHORT_GENERATION_BUFFER } from './_studyTokens.js'
+import { compactQuestionsForVerify } from './_studyCompact.js'
 import { buildVerifySourceText } from './_verifySourceSlice.js'
 import {
   normalizeEvaluationResponse,
@@ -15,6 +12,10 @@ import {
   type NormalizedVerificationResponse,
 } from './_studySchemas.js'
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
 export function buildQuizPrompt(args: {
   source: PreparedSourceDocument
   requestedMcq: number
@@ -22,36 +23,27 @@ export function buildQuizPrompt(args: {
   choiceCount: 4 | 5
   previousQuestions?: Array<{ prompt: string; topic: string }>
 }) {
-  const mcqCandidates = args.requestedMcq > 0 ? args.requestedMcq + 2 : 0
-  const shortCandidates = args.requestedShort > 0 ? args.requestedShort + 1 : 0
+  const mcqCandidates = args.requestedMcq > 0 ? args.requestedMcq + MCQ_GENERATION_BUFFER : 0
+  const shortCandidates = args.requestedShort > 0 ? args.requestedShort + SHORT_GENERATION_BUFFER : 0
   const priorQuestions = args.previousQuestions?.length
-    ? `\nAvoid repeating these previous questions:\n${args.previousQuestions
-        .slice(0, 40)
-        .map((question, index) => `${index + 1}. [${question.topic}] ${question.prompt}`)
+    ? `\nAvoid repeats:\n${args.previousQuestions
+        .slice(0, 24)
+        .map((question, index) => `${index + 1}. [${question.topic}] ${question.prompt.slice(0, 120)}`)
         .join('\n')}\n`
     : ''
 
   const pageScope = args.source.pages.length
-    ? `\nScope: This request covers SOURCE_PAGES ${args.source.pages.map((page) => page.pageNumber).join(', ')} only. Every question must be grounded in those pages.\n`
+    ? `Pages ${args.source.pages.map((page) => page.pageNumber).join(',')} only.\n`
     : ''
 
-  return `Create a physiotherapy revision quiz using only SOURCE_TEXT.
-${pageScope}
-Speed: call submit_quiz immediately with minimal internal reasoning.
-Rules:
-- Read the whole SOURCE_TEXT before writing questions.
-- Generate ${mcqCandidates} MCQ candidates and ${shortCandidates} short essay candidates.
-- Each MCQ must have exactly ${args.choiceCount} choices with ids ${args.choiceCount === 4 ? 'A, B, C, D' : 'A, B, C, D, E'}.
-- Each MCQ must have exactly one correct choice in correctChoiceId.
-- expectedAnswer must exactly match the correct option text.
-- Every answer must include evidenceQuote copied from SOURCE_TEXT or visual page notes.
-- Include pageNumber whenever possible.
-- Do not use outside medical knowledge.
-- Return the result by calling the submit_quiz tool only.
-${priorQuestions}
-SOURCE_TITLE: ${args.source.fileName}
+  const choiceIds = args.choiceCount === 4 ? 'A-D' : 'A-E'
 
-SOURCE_TEXT:
+  return `${pageScope}Grounded physio quiz from SOURCE_TEXT only. Call submit_quiz now; minimal reasoning.
+Create ${mcqCandidates} MCQ + ${shortCandidates} short essay candidates.
+MCQ: exactly ${args.choiceCount} choices (${choiceIds}), one correctChoiceId, expectedAnswer matches correct option text.
+Each Q: evidenceQuote from SOURCE_TEXT, pageNumber when possible, no outside knowledge.
+${priorQuestions}TITLE: ${args.source.fileName}
+SOURCE:
 ${args.source.fullText}`
 }
 
@@ -61,6 +53,7 @@ export async function generateMiniMaxQuiz(args: {
   requestedShort: number
   choiceCount: 4 | 5
   previousQuestions?: Array<{ prompt: string; topic: string }>
+  onNetworkMs?: (durationMs: number) => void
 }): Promise<NormalizedQuizResponse> {
   const content = await minimaxText({
     messages: [
@@ -70,6 +63,8 @@ export async function generateMiniMaxQuiz(args: {
     maxTokens: estimateQuizMaxTokens(args.requestedMcq, args.requestedShort),
     tools: [quizTool],
     toolName: 'submit_quiz',
+    requireTool: false,
+    onNetworkMs: args.onNetworkMs,
   })
 
   return normalizeQuizResponse(JSON.parse(content), 'generate-quiz')
@@ -86,28 +81,28 @@ export function buildVerifyPrompt(args: {
   source: PreparedSourceDocument
   questions: unknown[]
 }) {
+  const compact = compactQuestionsForVerify(args.questions)
   const verifyText = buildVerifySourceText({
     pages: args.source.pages,
     fullText: args.source.fullText,
-    questions: Array.isArray(args.questions)
-      ? (args.questions as Array<{ pageNumber?: number | null }>)
-      : [],
+    questions: compact as Array<{ pageNumber?: number | null }>,
   })
 
-  return `Verify QUESTIONS against SOURCE_TEXT only. Call submit_verification immediately with minimal reasoning.
-Reject if: unsupported answer, missing evidence, outside knowledge, or MCQ expectedAnswer mismatches correctChoiceId text.
-Return one result per question.
+  return `Verify QUESTIONS vs SOURCE. Call submit_verification now; minimal reasoning.
+Reject: unsupported answer, missing evidence, outside knowledge, MCQ expectedAnswer ≠ correct choice text.
+One result per question.
 
 QUESTIONS:
-${JSON.stringify(args.questions)}
+${JSON.stringify(compact)}
 
-SOURCE_TEXT:
+SOURCE:
 ${verifyText}`
 }
 
 export async function verifyMiniMaxQuestions(args: {
   source: PreparedSourceDocument
   questions: unknown[]
+  onNetworkMs?: (durationMs: number) => void
 }): Promise<NormalizedVerificationResponse> {
   const questions = Array.isArray(args.questions) ? args.questions : []
   const shortEssayCount = questions.filter(
@@ -124,6 +119,8 @@ export async function verifyMiniMaxQuestions(args: {
     maxTokens: estimateVerifyMaxTokens(questions.length, { shortEssayCount }),
     tools: [verificationTool],
     toolName: 'submit_verification',
+    requireTool: true,
+    onNetworkMs: args.onNetworkMs,
   })
 
   return normalizeVerificationResponse(JSON.parse(content), 'verify-quiz')
@@ -215,7 +212,7 @@ function systemMessage(): MiniMaxMessage {
   return {
     role: 'system',
     content:
-      'You are a strictly grounded physiotherapy study assistant. Use only the provided source text. Do not infer outside medical facts. Always call the requested tool immediately with minimal internal reasoning.',
+      'Grounded physiotherapy quiz assistant. Source text only. Call the required tool immediately; keep internal reasoning brief.',
   }
 }
 
