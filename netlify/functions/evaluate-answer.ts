@@ -4,11 +4,12 @@ import {
   parseJsonBody,
   safeError,
 } from './_gemini'
-import { prepareSourceDocument, requirePdfSource } from './_document'
+import { resolveStudySource, withModelSourceText } from './_document'
 import { evaluateMiniMaxEssay } from './_minimaxStudy'
 
 interface EvaluateAnswerRequest {
-  pdfSource: unknown
+  pdfSource?: unknown
+  preparedSource?: unknown
   question: {
     type: 'mcq' | 'short_essay'
     prompt: string
@@ -44,8 +45,6 @@ export const handler: Handler = async (event) => {
       })
     }
 
-    const pdfSource = requirePdfSource(payload.pdfSource)
-
     if (isMcq) {
       return jsonResponse({
         isCorrect: localCorrect,
@@ -58,7 +57,10 @@ export const handler: Handler = async (event) => {
       })
     }
 
-    const source = await prepareSourceDocument(pdfSource, { enableVlm: false })
+    const source = withModelSourceText(await resolveStudySource({
+      pdfSource: payload.pdfSource,
+      preparedSource: payload.preparedSource,
+    }))
     const normalized = await evaluateMiniMaxEssay({
       source,
       question: payload.question,

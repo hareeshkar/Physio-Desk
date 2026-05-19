@@ -4,11 +4,12 @@ import {
   parseJsonBody,
   safeError,
 } from './_gemini'
-import { prepareSourceDocument, requirePdfSource } from './_document'
+import { resolveStudySource, withModelSourceText } from './_document'
 import { verifyMiniMaxQuestions } from './_minimaxStudy'
 
 interface VerifyQuizRequest {
-  pdfSource: unknown
+  pdfSource?: unknown
+  preparedSource?: unknown
   questions: unknown[]
 }
 
@@ -18,8 +19,10 @@ export const handler: Handler = async (event) => {
 
   try {
     const payload = parseJsonBody<VerifyQuizRequest>(event.body)
-    const pdfSource = requirePdfSource(payload.pdfSource)
-    const source = await prepareSourceDocument(pdfSource, { enableVlm: false })
+    const source = withModelSourceText(await resolveStudySource({
+      pdfSource: payload.pdfSource,
+      preparedSource: payload.preparedSource,
+    }))
     const questions = Array.isArray(payload.questions) ? payload.questions : []
     const normalized = await verifyMiniMaxQuestions({ source, questions })
     const acceptedIds = new Set(

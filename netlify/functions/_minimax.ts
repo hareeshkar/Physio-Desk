@@ -98,20 +98,38 @@ export async function minimaxVlm(args: {
   return content
 }
 
+const DEFAULT_MINIMAX_TIMEOUT_MS = 120_000
+
 export async function minimaxPost(
   path: string,
   body: unknown,
   apiKey = getMiniMaxApiKey(),
   fetchImpl: FetchLike = fetch,
+  timeoutMs = DEFAULT_MINIMAX_TIMEOUT_MS,
 ) {
-  const response = await fetchImpl(`https://api.minimax.io${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  let response: Response
+  try {
+    response = await fetchImpl(`https://api.minimax.io${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('MiniMax request timed out. Try fewer questions or a shorter note.')
+    }
+
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
   const json = await response.json()
 
   if (!response.ok) {
@@ -133,6 +151,8 @@ export function assertMiniMaxSuccess(response: MiniMaxBaseResponse) {
 export function mapMiniMaxError(statusCode: number, statusMessage: string) {
   const message = (() => {
     switch (statusCode) {
+      case 1001:
+        return 'MiniMax took too long to respond. Try fewer questions or a shorter note.'
       case 1002:
         return 'MiniMax is busy right now. Please wait a moment and try again.'
       case 1004:

@@ -116,8 +116,12 @@ export function Upload() {
       }))
       const locallyValid = filterUsableQuestions(normalized, choiceCount).accepted
 
-      logStep('Verifying every question against the full PDF…')
-      let verified = await verifyQuiz({ pdfSource, questions: locallyValid })
+      logStep('Verifying every question against the source text…')
+      let verified = await verifyQuiz({
+        preparedSource: generated.preparedSource ?? { fileName: pdfSource.fileName, fullText: '' },
+        pdfSource: generated.preparedSource ? undefined : pdfSource,
+        questions: locallyValid,
+      })
 
       if (verified.warnings?.length) {
         logStep(`Partial verification response: ${verified.warnings.join(' ')}`)
@@ -160,7 +164,11 @@ export function Upload() {
           verificationStatus: 'pending',
         }))
         const retryValid = filterUsableQuestions(retryNormalized, choiceCount).accepted
-        verified = await verifyQuiz({ pdfSource, questions: retryValid })
+        verified = await verifyQuiz({
+          preparedSource: retryGenerated.preparedSource ?? generated.preparedSource ?? { fileName: pdfSource.fileName, fullText: '' },
+          pdfSource: (retryGenerated.preparedSource ?? generated.preparedSource) ? undefined : pdfSource,
+          questions: retryValid,
+        })
         accepted = [
           ...accepted,
           ...verified.acceptedQuestions.map((q) => ({

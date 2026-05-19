@@ -3,8 +3,11 @@ import {
   buildImageDataUri,
   buildPreparedSourceText,
   detectExtractionQuality,
+  MAX_MODEL_SOURCE_TEXT_CHARS,
   mergeVisualNotes,
   requirePdfSource,
+  truncateSourceTextForModel,
+  withModelSourceText,
   type SourcePage,
 } from '../functions/_document'
 
@@ -25,6 +28,29 @@ describe('document preparation helpers', () => {
     expect(detectExtractionQuality('')).toBe('weak')
     expect(detectExtractionQuality('short text')).toBe('weak')
     expect(detectExtractionQuality('This page has enough extracted text to be useful for grounded question generation. '.repeat(4))).toBe('strong')
+  })
+
+  it('truncates oversized source text for model calls', () => {
+    const longText = 'x'.repeat(MAX_MODEL_SOURCE_TEXT_CHARS + 500)
+    const truncated = truncateSourceTextForModel(longText)
+
+    expect(truncated.text.length).toBeLessThan(longText.length)
+    expect(truncated.text).toContain('[SOURCE TEXT TRUNCATED FOR LENGTH]')
+    expect(truncated.warnings[0]).toContain('truncated')
+  })
+
+  it('adds truncation warnings to prepared source documents', () => {
+    const source = withModelSourceText({
+      fileName: 'note.pdf',
+      mimeType: 'application/pdf',
+      pages: [],
+      fullText: 'y'.repeat(MAX_MODEL_SOURCE_TEXT_CHARS + 100),
+      visualNotes: [],
+      warnings: [],
+    })
+
+    expect(source.warnings.length).toBeGreaterThan(0)
+    expect(source.fullText).toContain('[SOURCE TEXT TRUNCATED FOR LENGTH]')
   })
 
   it('merges VLM visual notes into the correct page', () => {

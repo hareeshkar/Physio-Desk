@@ -4,7 +4,7 @@ import {
   parseJsonBody,
   safeError,
 } from './_gemini'
-import { prepareSourceDocument, requirePdfSource } from './_document'
+import { prepareSourceDocument, requirePdfSource, withModelSourceText } from './_document'
 import { generateMiniMaxQuiz } from './_minimaxStudy'
 
 interface GenerateQuizRequest {
@@ -25,9 +25,9 @@ export const handler: Handler = async (event) => {
   try {
     const payload = parseJsonBody<GenerateQuizRequest>(event.body)
     const pdfSource = requirePdfSource(payload.pdfSource)
-    const source = await prepareSourceDocument(pdfSource, {
+    const source = withModelSourceText(await prepareSourceDocument(pdfSource, {
       enableVlm: false,
-    })
+    }))
 
     const generated = await generateMiniMaxQuiz({
       source,
@@ -39,6 +39,10 @@ export const handler: Handler = async (event) => {
 
     return jsonResponse({
       ...generated,
+      preparedSource: {
+        fileName: source.fileName,
+        fullText: source.fullText,
+      },
       warnings: [...generated.warnings, ...source.warnings],
     })
   } catch (error) {

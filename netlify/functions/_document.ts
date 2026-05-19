@@ -23,6 +23,14 @@ export interface PreparedSourceDocument {
   warnings: string[]
 }
 
+export interface PreparedSourcePayload {
+  fileName: string
+  fullText: string
+}
+
+/** Keep MiniMax prompts within a size that fits Netlify function time limits. */
+export const MAX_MODEL_SOURCE_TEXT_CHARS = 48_000
+
 export function requirePdfSource(value: unknown): PdfSource {
   const record = isRecord(value) ? value : {}
   const fileName = typeof record.fileName === 'string' ? record.fileName.trim() : ''
@@ -140,6 +148,62 @@ export function mergeVisualNotes(
       ? { ...page, visualNotes, extractionQuality: 'visual' }
       : page
   })
+}
+
+export function requirePreparedSource(value: unknown): PreparedSourcePayload {
+  const record = isRecord(value) ? value : {}
+  const fileName = typeof record.fileName === 'string' ? record.fileName.trim() : ''
+  const fullText = typeof record.fullText === 'string' ? record.fullText.trim() : ''
+
+  if (!fileName || !fullText) {
+    throw new Error('Prepared source must include fileName and fullText.')
+  }
+
+  return { fileName, fullText }
+}
+
+export function preparedSourceToDocument(payload: PreparedSourcePayload): PreparedSourceDocument {
+  return {
+    fileName: payload.fileName,
+    mimeType: 'application/pdf',
+    pages: [],
+    fullText: payload.fullText,
+    visualNotes: [],
+    warnings: [],
+  }
+}
+
+export async function resolveStudySource(args: {
+  pdfSource?: unknown
+  preparedSource?: unknown
+}): Promise<PreparedSourceDocument> {
+  if (args.preparedSource) {
+    return preparedSourceToDocument(requirePreparedSource(args.preparedSource))
+  }
+
+  return prepareSourceDocument(requirePdfSource(args.pdfSource), { enableVlm: false })
+}
+
+export function truncateSourceTextForModel(fullText: string) {
+  if (fullText.length <= MAX_MODEL_SOURCE_TEXT_CHARS) {
+    return { text: fullText, warnings: [] as string[] }
+  }
+
+  return {
+    text: `${fullText.slice(0, MAX_MODEL_SOURCE_TEXT_CHARS)}\n\n[SOURCE TEXT TRUNCATED FOR LENGTH]`,
+    warnings: [
+      `Source text was truncated from ${fullText.length} to ${MAX_MODEL_SOURCE_TEXT_CHARS} characters to stay within server limits.`,
+    ],
+  }
+}
+
+export function withModelSourceText(source: PreparedSourceDocument): PreparedSourceDocument {
+  const truncated = truncateSourceTextForModel(source.fullText)
+  return {
+    ...source,
+    fullText: truncated.text,
+    warnings: [...source.warnings, ...truncated.warnings],
+  }
 }
 
 export function buildPreparedSourceText(pages: SourcePage[]) {
