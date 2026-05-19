@@ -1,5 +1,5 @@
 import { minimaxVlm } from './_minimax'
-import { loadPdfParse } from './_pdfRuntime'
+import { createPdfParser } from './_pdfRuntime'
 
 export interface PdfSource {
   fileName: string
@@ -83,8 +83,7 @@ export async function prepareSourceDocument(
 }
 
 export async function extractPdfPages(source: PdfSource): Promise<SourcePage[]> {
-  const { PDFParse } = await loadPdfParse()
-  const parser = new PDFParse({ data: Buffer.from(source.base64, 'base64') })
+  const parser = await createPdfParser({ data: Buffer.from(source.base64, 'base64') })
 
   try {
     const result = await parser.getText({ pageJoiner: '' })
@@ -108,8 +107,7 @@ export async function extractPdfPages(source: PdfSource): Promise<SourcePage[]> 
 }
 
 export async function renderPageToImageDataUri(source: PdfSource, pageNumber: number): Promise<string> {
-  const { PDFParse } = await loadPdfParse()
-  const parser = new PDFParse({ data: Buffer.from(source.base64, 'base64') })
+  const parser = await createPdfParser({ data: Buffer.from(source.base64, 'base64') })
 
   try {
     const result = await parser.getScreenshot({

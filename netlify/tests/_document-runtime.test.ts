@@ -29,4 +29,13 @@ describe('document runtime setup', () => {
       await expect(import('../functions/_gemini')).resolves.toHaveProperty('buildQuizPrompt')
     })
   })
+
+  it('configures pdf-parse worker without a local pdf.worker.mjs file', async () => {
+    await withoutDomGeometryGlobals(async () => {
+      const { loadPdfParse } = await import('../functions/_pdfRuntime')
+      const pdfParse = await loadPdfParse()
+      expect(pdfParse.PDFParse).toBeTypeOf('function')
+      expect(globalThis.pdfjsWorker?.WorkerMessageHandler).toBeTypeOf('function')
+    })
+  })
 })
